@@ -5,12 +5,16 @@ import { OrbitControls, Environment } from "@react-three/drei"
 import { useRef, useState, useEffect } from "react"
 import * as THREE from "three"
 
-const isMobile = () => {
+const isMobile = (): boolean => {
   if (typeof window === 'undefined') return false
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-const BoxWithEdges = ({ position }) => {
+interface BoxWithEdgesProps {
+  position: [number, number, number] | THREE.Vector3;
+}
+
+const BoxWithEdges = ({ position }: BoxWithEdgesProps) => {
   return (
     <group position={position}>
       <mesh>
@@ -33,11 +37,25 @@ const BoxWithEdges = ({ position }) => {
   )
 }
 
-const BoxLetter = ({ letter, position }) => {
-  const group = useRef()
+interface BoxLetterProps {
+  letter: string;
+  position: [number, number, number] | THREE.Vector3;
+}
 
-  const getLetterShape = (letter) => {
-    const shapes = {
+const BoxLetter = ({ letter, position }: BoxLetterProps) => {
+  const group = useRef<THREE.Group>(null);
+
+  const getLetterShape = (letter: string): number[][] => {
+    // Default letter shape (fallback)
+    if (!letter || typeof letter !== 'string') {
+      return [
+        [1,1,1],
+        [1,0,1],
+        [1,1,1]
+      ];
+    }
+
+    const shapes: { [key: string]: number[][] } = {
       N: [
         [1,0,0,0,1],
         [1,1,0,0,1],
@@ -48,7 +66,7 @@ const BoxLetter = ({ letter, position }) => {
       E: [
         [1,1,1],
         [1,0,0],
-        [1,1,0],
+        [1,1,1],
         [1,0,0],
         [1,1,1],
       ],
@@ -67,17 +85,17 @@ const BoxLetter = ({ letter, position }) => {
         [0,1,0],
       ],
     }
-    return shapes[letter] || shapes['N'] // Default to 'N' if letter is not found
+    return shapes[letter] || shapes['N']; // Default to 'N' if letter is not found
   }
 
-  const letterShape = getLetterShape(letter)
+  const letterShape = getLetterShape(letter);
 
   return (
     <group ref={group} position={position}>
       {letterShape.map((row, i) =>
         row.map((cell, j) => {
           if (cell) {
-            let xOffset = j * 0.5 - (letter === 'T' ? 1 : letter === 'E' ? 0.5 : letter === 'X' || letter === 'N' ? 1 : 0.75)
+            let xOffset = j * 0.5 - (letter === 'T' ? 1 : letter === 'E' ? 0.5 : letter === 'X' || letter === 'N' ? 1 : 0.75);
             
             if (letter === 'N') {
               if (j === 0) {
@@ -112,30 +130,40 @@ const BoxLetter = ({ letter, position }) => {
                 key={`${i}-${j}`} 
                 position={[xOffset, (4 - i) * 0.5 - 1, 0]}
               />
-            )
+            );
           }
-          return null
+          return null;
         })
       )}
     </group>
-  )
+  );
 }
 
 const Scene = () => {
-  const orbitControlsRef = useRef()
+  const { size } = useThree();
+  const [letters, setLetters] = useState<string[]>(['N', 'E', 'X', 'T']);
+  const orbitControlsRef = useRef<any>(null);
   const [isMobileDevice, setIsMobileDevice] = useState(false)
 
   useEffect(() => {
-    setIsMobileDevice(isMobile())
-  }, [])
+    const handleResize = () => {
+      setIsMobileDevice(isMobile());
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   return (
     <>
       <group position={[-0.5, 0, 0]} rotation={[0, Math.PI / 1.5, 0]}>
-        <BoxLetter letter="N" position={[-3.75, 0, 0]} />
-        <BoxLetter letter="E" position={[-1.25, 0, 0]} />
-        <BoxLetter letter="X" position={[1.25, 0, 0]} />
-        <BoxLetter letter="T" position={[3.75, 0, 0]} />
+        {letters.map((letter, index) => (
+          <BoxLetter key={index} letter={letter} position={[-3.75 + index * 2.5, 0, 0]} />
+        ))}
       </group>
       <OrbitControls 
         ref={orbitControlsRef}
@@ -171,4 +199,3 @@ export default function Component() {
     </div>
   )
 }
-
